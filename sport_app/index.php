@@ -304,8 +304,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
             if ($homeScore > 99 || $awayScore > 99) {
                 $error = 'Skóre môže byť od 0 do 99.';
-            } elseif (!$matchDate || $matchDate >= date('Y-m-d')) {
-                $error = 'Výsledok sa dá označiť až po dni zápasu.';
+            } elseif (!$matchDate || $matchDate > date('Y-m-d')) {
+                $error = 'Výsledok sa dá označiť až v deň zápasu.';
             } else {
                 $stmt = $pdo->prepare('
                     INSERT INTO sport_match_results (match_id, result, home_score, away_score, admin_user_id)
@@ -871,7 +871,7 @@ if ($user) {
                             </div>
                         </td>
                         <td>
-                            <?php if (isAdmin() && $match['datum'] < $today): ?>
+                            <?php if (isAdmin() && $match['datum'] <= $today): ?>
                                 <form class="result-form" method="post">
                                     <input type="hidden" name="action" value="set_result">
                                     <input type="hidden" name="match_id" value="<?= (int) $match['id'] ?>">
