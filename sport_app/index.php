@@ -692,6 +692,18 @@ if ($user) {
             background: #ffffff;
         }
 
+        .vote-list-item.exact-score {
+            background: #F5F4A3;
+        }
+
+        .vote-list-item.correct-winner {
+            background: #D9F8C4;
+        }
+
+        .vote-list-item.wrong-pick {
+            background: #F3CACC;
+        }
+
         @media (max-width: 700px) {
             .page {
                 width: min(100% - 20px, 1680px);
@@ -839,6 +851,7 @@ if ($user) {
                                         <?php
                                             $parts = explode(': ', $voteItem, 2);
                                             $visibleVoteItem = $showRealNames || count($parts) < 2 ? $voteItem : $parts[0];
+                                            $voteClass = '';
 
                                             if (
                                                 $showRealNames
@@ -856,14 +869,18 @@ if ($user) {
                                                 $points = 0;
                                                 if ($tipHomeScore === $resultHomeScore && $tipAwayScore === $resultAwayScore) {
                                                     $points = 3;
+                                                    $voteClass = 'exact-score';
                                                 } elseif ($tipOutcome === $resultOutcome) {
                                                     $points = 1;
+                                                    $voteClass = 'correct-winner';
+                                                } else {
+                                                    $voteClass = 'wrong-pick';
                                                 }
 
                                                 $visibleVoteItem .= ' | počet bodov: ' . $points;
                                             }
                                         ?>
-                                        <div class="vote-list-item"><?= e($visibleVoteItem) ?></div>
+                                        <div class="vote-list-item<?= $voteClass ? ' ' . e($voteClass) : '' ?>"><?= e($visibleVoteItem) ?></div>
                                     <?php endforeach; ?>
                                 <?php else: ?>
                                     <span class="muted">Zatiaľ nikto nehlasoval.</span>
