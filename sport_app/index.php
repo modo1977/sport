@@ -152,6 +152,41 @@ function showRealVoterNames(array $match): bool
     return date('Y-m-d') >= $match['datum'];
 }
 
+function slovakWeekday(DateTimeImmutable $date): string
+{
+    $days = [
+        1 => 'Pondelok',
+        2 => 'Utorok',
+        3 => 'Streda',
+        4 => 'Štvrtok',
+        5 => 'Piatok',
+        6 => 'Sobota',
+        7 => 'Nedeľa',
+    ];
+
+    return $days[(int) $date->format('N')];
+}
+
+function slovakMonth(DateTimeImmutable $date): string
+{
+    $months = [
+        1 => 'január',
+        2 => 'február',
+        3 => 'marec',
+        4 => 'apríl',
+        5 => 'máj',
+        6 => 'jún',
+        7 => 'júl',
+        8 => 'august',
+        9 => 'september',
+        10 => 'október',
+        11 => 'november',
+        12 => 'december',
+    ];
+
+    return $months[(int) $date->format('n')];
+}
+
 function currentUser(): ?array
 {
     return $_SESSION['user'] ?? null;
@@ -285,6 +320,51 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $stmt = $pdo->prepare('UPDATE zapasy_ms2026 SET cas = ? WHERE id = ?');
             $stmt->execute([$timeValue, $matchId]);
             header('Location: index.php#match-' . $matchId);
+            exit;
+        }
+    }
+
+    if ($action === 'add_match' && isAdmin()) {
+        $dateInput = trim((string) ($_POST['datum'] ?? ''));
+        $timeInput = trim((string) ($_POST['cas'] ?? ''));
+        $group = trim((string) ($_POST['skupina'] ?? ''));
+        $homeTeam = trim((string) ($_POST['tim_domaci'] ?? ''));
+        $awayTeam = trim((string) ($_POST['tim_hostia'] ?? ''));
+        $date = DateTimeImmutable::createFromFormat('!Y-m-d', $dateInput, appTimeZone());
+        $dateErrors = DateTimeImmutable::getLastErrors();
+
+        if (!$date || $dateErrors['warning_count'] > 0 || $dateErrors['error_count'] > 0) {
+            $error = 'Zadajte platný dátum zápasu.';
+        } elseif ($timeInput !== '' && !preg_match('/^\d{2}:\d{2}$/', $timeInput)) {
+            $error = 'Zadajte čas vo formáte HH:MM.';
+        } elseif ($group === '' || $homeTeam === '' || $awayTeam === '') {
+            $error = 'Vyplňte skupinu a oba tímy.';
+        } elseif (mb_strlen($group) > 32 || mb_strlen($homeTeam) > 80 || mb_strlen($awayTeam) > 80) {
+            $error = 'Niektoré pole je príliš dlhé.';
+        } else {
+            $dateText = $date->format('d.m.');
+            $weekday = slovakWeekday($date);
+            $dayLabel = (int) $date->format('j') . '. ' . slovakMonth($date) . ', ' . $weekday;
+            $matchName = $homeTeam . ' – ' . $awayTeam;
+            $timeValue = $timeInput === '' ? null : $timeInput . ':00';
+
+            $stmt = $pdo->prepare('
+                INSERT INTO zapasy_ms2026 (datum, cas, datum_text, den_label, den_v_tyzdni, skupina, zapas, tim_domaci, tim_hostia)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ');
+            $stmt->execute([
+                $date->format('Y-m-d'),
+                $timeValue,
+                $dateText,
+                $dayLabel,
+                $weekday,
+                $group,
+                $matchName,
+                $homeTeam,
+                $awayTeam,
+            ]);
+
+            header('Location: index.php#match-' . $pdo->lastInsertId());
             exit;
         }
     }
@@ -528,6 +608,18 @@ if ($user) {
             margin-top: 14px;
         }
 
+        .match-form-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+            gap: 12px;
+            align-items: end;
+            margin-top: 14px;
+        }
+
+        .match-form-grid label {
+            margin-top: 0;
+        }
+
         .user-admin-row {
             display: flex;
             align-items: center;
@@ -762,6 +854,34 @@ if ($user) {
         <?php endif; ?>
 
         <?php if (isAdmin()): ?>
+            <section class="panel admin-panel" id="add-match">
+                <h2>Pridať zápas</h2>
+                <form class="match-form-grid" method="post">
+                    <input type="hidden" name="action" value="add_match">
+                    <div>
+                        <label for="new-match-date">Dátum</label>
+                        <input id="new-match-date" name="datum" type="date" required>
+                    </div>
+                    <div>
+                        <label for="new-match-time">Čas</label>
+                        <input id="new-match-time" name="cas" type="time">
+                    </div>
+                    <div>
+                        <label for="new-match-group">Skupina</label>
+                        <input id="new-match-group" name="skupina" maxlength="32" required>
+                    </div>
+                    <div>
+                        <label for="new-match-home">Domáci tím</label>
+                        <input id="new-match-home" name="tim_domaci" maxlength="80" required>
+                    </div>
+                    <div>
+                        <label for="new-match-away">Hosťujúci tím</label>
+                        <input id="new-match-away" name="tim_hostia" maxlength="80" required>
+                    </div>
+                    <button type="submit">Pridať</button>
+                </form>
+            </section>
+
             <section class="panel admin-panel" id="admin-users">
                 <h2>Admin používatelia</h2>
                 <div class="admin-grid">
